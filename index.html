@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kim & Ian: Smart Tracker</title>
+    <title>Kim & Ian: Ultimate Tracker</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -22,7 +22,7 @@
         #dashboard { 
             position: absolute; top: 15px; left: 10px; right: 10px; z-index: 1000; 
             background: rgba(20, 20, 20, 0.9); padding: 12px; border-radius: 15px; 
-            border: 2px solid #333; display: none; transition: 0.3s;
+            border: 2px solid #333; display: none;
         }
 
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
@@ -30,17 +30,19 @@
         .stat-label { font-size: 8px; color: #888; text-transform: uppercase; }
         .stat-val { font-size: 14px; font-weight: bold; color: var(--neon-blue); }
 
-        /* Overspeed Flash Animation */
-        .overspeed-alert { 
-            background: rgba(255, 49, 49, 0.8) !important; 
-            border-color: white !important;
-            animation: flash 0.5s infinite alternate;
-        }
-        @keyframes flash { from { opacity: 1; } to { opacity: 0.5; } }
+        .badge { padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; }
+        .moving { background: var(--neon-green); color: black; }
+        .staying { background: #555; color: white; }
 
-        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; width: 85%; max-width: 300px; }
-        .btn { width: 100%; padding: 16px; border: none; border-radius: 50px; font-size: 15px; font-weight: bold; cursor: pointer; background: var(--neon-green); color: black; }
-        .btn-stop { background: #ff4444 !important; color: white; }
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; width: 85%; }
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 50px; font-size: 15px; font-weight: bold; cursor: pointer; background: var(--neon-green); color: black; box-shadow: 0 4px 15px rgba(57, 255, 20, 0.3); }
+        .btn-stop { background: var(--neon-red) !important; color: white; box-shadow: 0 4px 15px rgba(255, 49, 49, 0.3); }
+
+        .moving-icon { animation: pulse 1s infinite alternate; filter: drop-shadow(0 0 8px var(--neon-green)); }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+        
+        .overspeed-alert { background: rgba(255, 49, 49, 0.8) !important; border-color: white !important; animation: bg-flash 0.5s infinite alternate; }
+        @keyframes bg-flash { from { opacity: 1; } to { opacity: 0.7; } }
     </style>
 </head>
 <body>
@@ -55,15 +57,18 @@
 </div>
 
 <div id="dashboard">
-    <div style="display: flex; justify-content: space-between; font-size: 11px;">
-        <span id="role-text" style="color: var(--neon-green);">READY</span>
-        <span id="speed-warning" style="color: white; font-weight: bold; display: none;">⚠️ KUSOG RA KAAYO!</span>
+    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+        <div>
+            <span id="role-text" style="color: var(--neon-blue); font-weight: bold;">OFFLINE</span>
+            <span id="move-status" class="badge staying" style="margin-left: 5px;">STAYING</span>
+        </div>
+        <span id="speed-warning" style="color: white; font-weight: bold; display: none;">⚠️ SLOW DOWN!</span>
     </div>
     <div class="stats-grid">
         <div class="stat-card"><div class="stat-label">Distance</div><div class="stat-val"><span id="distance">0.00</span> KM</div></div>
-        <div class="stat-card"><div class="stat-label">Partner Speed</div><div class="stat-val" id="p-speed-ui"><span id="p-speed">0</span> km/h</div></div>
+        <div class="stat-card"><div class="stat-label">Partner Speed</div><div class="stat-val"><span id="p-speed">0</span> km/h</div></div>
         <div class="stat-card"><div class="stat-label">Your Speed</div><div class="stat-val"><span id="speed">0</span> km/h</div></div>
-        <div class="stat-card"><div class="stat-label">Battery</div><div class="stat-val"><span id="p-batt">--</span>%</div></div>
+        <div class="stat-card"><div class="stat-label">Partner Batt</div><div class="stat-val"><span id="p-batt">--</span>%</div></div>
     </div>
 </div>
 
@@ -80,53 +85,68 @@
     let isTracking = false, watchId = null, userRole = null;
     let markers = {}; 
     let coords = { driver: null, partner: null };
-    const SPEED_LIMIT = 60; // I-set ang speed limit diri
+    const SPEED_LIMIT = 60; 
 
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([7.0722, 125.601], 15);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-    
-    // Traffic Layer
     L.tileLayer('https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0','mt1','mt2','mt3'], opacity: 0.8 }).addTo(map);
 
-    const icons = {
-        driver: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/171/171240.png', iconSize: [40, 40], iconAnchor: [20, 20] }),
-        partner: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/741/741407.png', iconSize: [40, 40], iconAnchor: [20, 20] })
+    const iconMotor = 'https://cdn-icons-png.flaticon.com/512/171/171240.png';
+    const iconCar = 'https://cdn-icons-png.flaticon.com/512/741/741407.png';
+
+    window.onload = () => {
+        const saved = localStorage.getItem('kimian_login');
+        if (saved) { userRole = JSON.parse(saved).role; showApp(); }
     };
 
     async function doLogin() {
         const uEmail = document.getElementById('email').value.trim();
         const uPass = document.getElementById('pass').value.trim();
         const { data } = await supabaseClient.from('my_users').select('*').eq('email', uEmail).eq('password', uPass).single();
-        if (!data) return alert("Check login!");
-        
-        userRole = data.role;
+        if (data) {
+            localStorage.setItem('kimian_login', JSON.stringify(data));
+            userRole = data.role; showApp();
+        } else { alert("Login failed!"); }
+    }
+
+    function showApp() {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('map').style.display = 'block';
         document.getElementById('dashboard').style.display = 'block';
         document.getElementById('controls').style.display = 'block';
-        
-        // Audio permission trick
-        document.body.addEventListener('click', () => { document.getElementById('alertSound').play().then(() => { document.getElementById('alertSound').pause(); }); }, { once: true });
-        
+        document.getElementById('role-text').innerText = userRole.toUpperCase();
+        document.body.addEventListener('click', () => { document.getElementById('alertSound').play().then(()=>document.getElementById('alertSound').pause()); }, { once: true });
         setTimeout(() => map.invalidateSize(), 300);
         listenUpdates();
+        loadLast();
     }
 
-    function playAlert() {
-        const sound = document.getElementById('alertSound');
-        sound.currentTime = 0;
-        sound.play().catch(e => console.log("Audio block:", e));
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    async function loadLast() {
+        const { data } = await supabaseClient.from('motor_location').select('*');
+        data?.forEach(loc => updateUI(loc));
     }
 
     function updateUI(data) {
         const { role, lat, lng, speed, battery } = data;
         coords[role] = { lat, lng };
 
-        if (!markers[role]) markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map);
-        else markers[role].setLatLng([lat, lng]);
+        const isMoving = speed > 3;
+        const iconUrl = (role === 'driver') ? iconMotor : iconCar;
+        
+        const customIcon = L.icon({ 
+            iconUrl: iconUrl, 
+            iconSize: [45, 45], 
+            iconAnchor: [22, 22],
+            className: isMoving ? 'moving-icon' : ''
+        });
 
-        // Compute Distance
+        if (!markers[role]) {
+            markers[role] = L.marker([lat, lng], { icon: customIcon }).addTo(map);
+        } else {
+            markers[role].setLatLng([lat, lng]);
+            markers[role].setIcon(customIcon);
+        }
+
         if (coords.driver && coords.partner) {
             const R = 6371;
             const dLat = (coords.partner.lat-coords.driver.lat)*Math.PI/180;
@@ -135,21 +155,25 @@
             document.getElementById('distance').innerText = (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
         }
 
-        // SPEED ALERT LOGIC (Kon si Ian/Driver ang nag-kusog)
-        if (role === 'driver' && userRole === 'partner') {
+        if (role !== userRole) {
             document.getElementById('p-speed').innerText = speed || 0;
             document.getElementById('p-batt').innerText = battery || '--';
-            
+            const statusBadge = document.getElementById('move-status');
             const dash = document.getElementById('dashboard');
-            const warn = document.getElementById('speed-warning');
-            
+
+            if (isMoving) {
+                statusBadge.innerText = "MOVING"; statusBadge.className = "badge moving";
+            } else {
+                statusBadge.innerText = "STAYING"; statusBadge.className = "badge staying";
+            }
+
             if (speed > SPEED_LIMIT) {
                 dash.classList.add('overspeed-alert');
-                warn.style.display = 'block';
-                playAlert();
+                document.getElementById('speed-warning').style.display = 'block';
+                document.getElementById('alertSound').play();
             } else {
                 dash.classList.remove('overspeed-alert');
-                warn.style.display = 'none';
+                document.getElementById('speed-warning').style.display = 'none';
             }
         }
     }
@@ -171,7 +195,9 @@
                 document.getElementById('speed').innerText = kmh;
                 map.panTo([latitude, longitude]);
                 const batt = await (navigator.getBattery ? navigator.getBattery().then(b => Math.floor(b.level * 100)) : 0);
-                await supabaseClient.from('motor_location').update({ lat: latitude, lng: longitude, speed: kmh, battery: batt }).eq('role', userRole);
+                await supabaseClient.from('motor_location').update({ 
+                    lat: latitude, lng: longitude, speed: kmh, battery: batt, updated_at: new Date().toISOString() 
+                }).eq('role', userRole);
             }, null, { enableHighAccuracy: true });
         } else {
             isTracking = false;
