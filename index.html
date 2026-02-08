@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kim & Ian: Super Tracker</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root { --neon-blue: #00d2ff; --neon-green: #39ff14; --dark: #0a0a0a; --glass: rgba(20, 20, 20, 0.9); }
+        body { margin: 0; padding: 0; background: var(--dark); font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
+        
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .login-box { background: #1a1a1a; padding: 30px; border-radius: 20px; border: 1px solid #333; width: 85%; max-width: 350px; text-align: center; }
+        input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #444; background: #000; color: var(--neon-green); box-sizing: border-box; font-size: 16px; outline: none; }
+
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; display: none; }
+        
+        #dashboard { 
+            position: absolute; top: 15px; left: 10px; right: 10px; z-index: 1000; 
+            background: var(--glass); padding: 15px; border-radius: 20px; 
+            border: 1px solid #333; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .stat-card { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; text-align: center; }
+        .stat-label { font-size: 9px; color: #888; text-transform: uppercase; }
+        .stat-val { font-size: 15px; font-weight: bold; color: var(--neon-blue); }
+
+        #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; width: 85%; max-width: 320px; }
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; background: var(--neon-green); color: black; transition: 0.3s; box-shadow: 0 5px 15px rgba(57, 255, 20, 0.3); }
+        .btn-stop { background: #ff4444 !important; color: white; box-shadow: 0 5px 15px rgba(255, 68, 68, 0.3); }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <div class="login-box">
+        <h2 style="color: var(--neon-blue);">KIM & IAN</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="pass" placeholder="Password">
+        <button class="btn" onclick="doLogin()">SIGN IN</button>
+    </div>
+</div>
+
+<div id="dashboard">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span id="role-text" style="font-size: 12px; font-weight: bold; color: var(--neon-green);">MAP ACTIVE</span>
+        <span id="last-seen" style="font-size: 10px; color: #888;">Updating...</span>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Distance</div>
+            <div class="stat-val"><span id="distance">---</span> KM</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Partner Battery</div>
+            <div class="stat-val"><span id="p-batt">--</span>%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Your Speed</div>
+            <div class="stat-val"><span id="speed">0</span> KM/H</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Signal</div>
+            <div class="stat-val" style="color: var(--neon-green);">LIVE</div>
+        </div>
+    </div>
+</div>
+
+<div id="controls">
+    <button id="trackBtn" class="btn" onclick="toggleTracking()">START MOTORING</button>
+</div>
+
+<div id="map"></div>
+
+<script>
+    const SB_URL = 'https://epqvajuddzlygciadrdh.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwcXZhanVkZHpseWdjaWFkcmRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTM2NDksImV4cCI6MjA4NjEyOTY0OX0.4tK1TmDQ9C0Abqood-IgFjrTCmBgVYsDAu-JPa3zYoQ';
+    const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
+    let isTracking = false, watchId = null, userRole = null;
+    let markers = {}; 
+    let coords = { driver: null, partner: null };
+
+    const map = L.map('map', { zoomControl: false }).setView([7.0722, 125.601], 15);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+    
+    // Google Traffic Layer
+    L.tileLayer('https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', {
+        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], opacity: 0.8
+    }).addTo(map);
+
+    const icons = {
+        driver: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/171/171240.png', iconSize: [40, 40] }),
+        partner: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/3126/3126647.png', iconSize: [40, 40] })
+    };
+
+    async function doLogin() {
+        const uEmail = document.getElementById('email').value.trim();
+        const uPass = document.getElementById('pass').value.trim();
+        const { data, error } = await supabaseClient.from('my_users').select('*').eq('email', uEmail).eq('password', uPass).single();
+
+        if (error || !data) { alert("Check login!"); return; }
+
+        userRole = data.role;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('map').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('controls').style.display = 'block';
+        document.getElementById('role-text').innerText = userRole.toUpperCase() + " MODE";
+
+        setTimeout(() => map.invalidateSize(), 500);
+        listenToUpdates();
+        loadLastLocations();
+    }
+
+    async function loadLastLocations() {
+        const { data } = await supabaseClient.from('motor_location').select('*');
+        data?.forEach(loc => updateUI(loc));
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        if(!lat1 || !lat2) return null;
+        const R = 6371; 
+        const dLat = (lat2-lat1)*Math.PI/180;
+        const dLon = (lon2-lon1)*Math.PI/180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+        return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
+    }
+
+    function updateUI(data) {
+        const { role, lat, lng, speed, battery, updated_at } = data;
+        coords[role] = { lat, lng };
+
+        // Update Marker
+        if (!markers[role]) {
+            markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map);
+        } else {
+            markers[role].setLatLng([lat, lng]);
+        }
+
+        // Distance & Battery
+        if (coords.driver && coords.partner) {
+            document.getElementById('distance').innerText = calculateDistance(coords.driver.lat, coords.driver.lng, coords.partner.lat, coords.partner.lng);
+        }
+        if (role !== userRole) {
+            document.getElementById('p-batt').innerText = battery || '--';
+            document.getElementById('last-seen').innerText = "Last Seen: " + new Date(updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+    }
+
+    function listenToUpdates() {
+        supabaseClient.channel('realtime').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'motor_location' }, payload => {
+            updateUI(payload.new);
+        }).subscribe();
+    }
+
+    async function toggleTracking() {
+        const btn = document.getElementById('trackBtn');
+        if (!isTracking) {
+            isTracking = true;
+            btn.innerText = "STOP SHARING";
+            btn.classList.add('btn-stop');
+
+            watchId = navigator.geolocation.watchPosition(async (pos) => {
+                const { latitude, longitude, speed } = pos.coords;
+                const battery = await (navigator.getBattery ? navigator.getBattery().then(b => Math.floor(b.level * 100)) : 0);
+                
+                document.getElementById('speed').innerText = speed ? Math.round(speed * 3.6) : 0;
+                map.panTo([latitude, longitude]);
+
+                await supabaseClient.from('motor_location').update({ 
+                    lat: latitude, lng: longitude, speed: speed ? Math.round(speed * 3.6) : 0, battery: battery, updated_at: new Date()
+                }).eq('role', userRole);
+            }, null, { enableHighAccuracy: true });
+        } else {
+            isTracking = false;
+            btn.innerText = "START MOTORING";
+            btn.classList.remove('btn-stop');
+            navigator.geolocation.clearWatch(watchId);
+        }
+    }
+</script>
+</body>
+</html>
