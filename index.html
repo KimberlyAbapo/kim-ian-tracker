@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kim & Ian: Tracker</title>
+    <title>Kim & Ian: Smart Tracker</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        :root { --neon-blue: #00d2ff; --neon-green: #39ff14; --dark: #0a0a0a; }
-        * { box-sizing: border-box; }
+        :root { --neon-blue: #00d2ff; --neon-green: #39ff14; --neon-red: #ff3131; --dark: #0a0a0a; }
         body { margin: 0; padding: 0; background: var(--dark); font-family: sans-serif; color: white; overflow: hidden; height: 100vh; }
         
         #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -23,13 +22,21 @@
         #dashboard { 
             position: absolute; top: 15px; left: 10px; right: 10px; z-index: 1000; 
             background: rgba(20, 20, 20, 0.9); padding: 12px; border-radius: 15px; 
-            border: 1px solid #333; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border: 2px solid #333; display: none; transition: 0.3s;
         }
 
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
         .stat-card { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 10px; text-align: center; }
         .stat-label { font-size: 8px; color: #888; text-transform: uppercase; }
-        .stat-val { font-size: 13px; font-weight: bold; color: var(--neon-blue); }
+        .stat-val { font-size: 14px; font-weight: bold; color: var(--neon-blue); }
+
+        /* Overspeed Flash Animation */
+        .overspeed-alert { 
+            background: rgba(255, 49, 49, 0.8) !important; 
+            border-color: white !important;
+            animation: flash 0.5s infinite alternate;
+        }
+        @keyframes flash { from { opacity: 1; } to { opacity: 0.5; } }
 
         #controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; width: 85%; max-width: 300px; }
         .btn { width: 100%; padding: 16px; border: none; border-radius: 50px; font-size: 15px; font-weight: bold; cursor: pointer; background: var(--neon-green); color: black; }
@@ -48,20 +55,22 @@
 </div>
 
 <div id="dashboard">
-    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-green);">
-        <span id="role-text">READY</span>
-        <span id="last-seen">Live</span>
+    <div style="display: flex; justify-content: space-between; font-size: 11px;">
+        <span id="role-text" style="color: var(--neon-green);">READY</span>
+        <span id="speed-warning" style="color: white; font-weight: bold; display: none;">⚠️ KUSOG RA KAAYO!</span>
     </div>
     <div class="stats-grid">
         <div class="stat-card"><div class="stat-label">Distance</div><div class="stat-val"><span id="distance">0.00</span> KM</div></div>
-        <div class="stat-card"><div class="stat-label">Pikas Batt</div><div class="stat-val"><span id="p-batt">--</span>%</div></div>
+        <div class="stat-card"><div class="stat-label">Partner Speed</div><div class="stat-val" id="p-speed-ui"><span id="p-speed">0</span> km/h</div></div>
         <div class="stat-card"><div class="stat-label">Your Speed</div><div class="stat-val"><span id="speed">0</span> km/h</div></div>
-        <div class="stat-card"><div class="stat-label">Status</div><div id="sig-stat" class="stat-val">OK</div></div>
+        <div class="stat-card"><div class="stat-label">Battery</div><div class="stat-val"><span id="p-batt">--</span>%</div></div>
     </div>
 </div>
 
 <div id="controls"><button id="trackBtn" class="btn" onclick="toggleTracking()">START TRACKING</button></div>
 <div id="map"></div>
+
+<audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script>
     const SB_URL = 'https://epqvajuddzlygciadrdh.supabase.co';
@@ -71,73 +80,77 @@
     let isTracking = false, watchId = null, userRole = null;
     let markers = {}; 
     let coords = { driver: null, partner: null };
+    const SPEED_LIMIT = 60; // I-set ang speed limit diri
 
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([7.0722, 125.601], 15);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-    L.tileLayer('https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0','mt1','mt2','mt3'], opacity: 0.7 }).addTo(map);
+    
+    // Traffic Layer
+    L.tileLayer('https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0','mt1','mt2','mt3'], opacity: 0.8 }).addTo(map);
 
-    // --- ICONS CONFIG ---
     const icons = {
-        driver: L.icon({ 
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/171/171240.png', // Motorcycle Icon
-            iconSize: [40, 40], iconAnchor: [20, 20] 
-        }),
-        partner: L.icon({ 
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/741/741407.png', // Car Icon
-            iconSize: [40, 40], iconAnchor: [20, 20] 
-        })
+        driver: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/171/171240.png', iconSize: [40, 40], iconAnchor: [20, 20] }),
+        partner: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/741/741407.png', iconSize: [40, 40], iconAnchor: [20, 20] })
     };
 
     async function doLogin() {
         const uEmail = document.getElementById('email').value.trim();
         const uPass = document.getElementById('pass').value.trim();
-        const { data, error } = await supabaseClient.from('my_users').select('*').eq('email', uEmail).eq('password', uPass).single();
-        if (error || !data) return alert("Wrong login!");
-
+        const { data } = await supabaseClient.from('my_users').select('*').eq('email', uEmail).eq('password', uPass).single();
+        if (!data) return alert("Check login!");
+        
         userRole = data.role;
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('map').style.display = 'block';
         document.getElementById('dashboard').style.display = 'block';
         document.getElementById('controls').style.display = 'block';
-        document.getElementById('role-text').innerText = userRole.toUpperCase() + " ACTIVE";
-
+        
+        // Audio permission trick
+        document.body.addEventListener('click', () => { document.getElementById('alertSound').play().then(() => { document.getElementById('alertSound').pause(); }); }, { once: true });
+        
         setTimeout(() => map.invalidateSize(), 300);
-        loadLastLocs();
         listenUpdates();
     }
 
-    async function loadLastLocs() {
-        const { data } = await supabaseClient.from('motor_location').select('*');
-        data?.forEach(loc => updateUI(loc));
-    }
-
-    function getDist(lat1, lon1, lat2, lon2) {
-        if(!lat1 || !lat2) return "0.00";
-        const R = 6371; 
-        const dLat = (lat2-lat1)*Math.PI/180;
-        const dLon = (lon2-lon1)*Math.PI/180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-        return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
+    function playAlert() {
+        const sound = document.getElementById('alertSound');
+        sound.currentTime = 0;
+        sound.play().catch(e => console.log("Audio block:", e));
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     }
 
     function updateUI(data) {
-        const { role, lat, lng, speed, battery, updated_at } = data;
+        const { role, lat, lng, speed, battery } = data;
         coords[role] = { lat, lng };
 
-        if (!markers[role]) {
-            markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map);
-        } else {
-            markers[role].setLatLng([lat, lng]);
+        if (!markers[role]) markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map);
+        else markers[role].setLatLng([lat, lng]);
+
+        // Compute Distance
+        if (coords.driver && coords.partner) {
+            const R = 6371;
+            const dLat = (coords.partner.lat-coords.driver.lat)*Math.PI/180;
+            const dLon = (coords.partner.lng-coords.driver.lng)*Math.PI/180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(coords.driver.lat*Math.PI/180)*Math.cos(coords.partner.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+            document.getElementById('distance').innerText = (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
         }
 
-        if (coords.driver && coords.partner) {
-            document.getElementById('distance').innerText = getDist(coords.driver.lat, coords.driver.lng, coords.partner.lat, coords.partner.lng);
-        }
-        
-        if (role !== userRole) {
+        // SPEED ALERT LOGIC (Kon si Ian/Driver ang nag-kusog)
+        if (role === 'driver' && userRole === 'partner') {
+            document.getElementById('p-speed').innerText = speed || 0;
             document.getElementById('p-batt').innerText = battery || '--';
-            const time = new Date(updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            document.getElementById('last-seen').innerText = "Last: " + time;
+            
+            const dash = document.getElementById('dashboard');
+            const warn = document.getElementById('speed-warning');
+            
+            if (speed > SPEED_LIMIT) {
+                dash.classList.add('overspeed-alert');
+                warn.style.display = 'block';
+                playAlert();
+            } else {
+                dash.classList.remove('overspeed-alert');
+                warn.style.display = 'none';
+            }
         }
     }
 
@@ -148,19 +161,22 @@
     }
 
     async function toggleTracking() {
-        const btn = document.getElementById('trackBtn');
         if (!isTracking) {
             isTracking = true;
-            btn.innerText = "STOP SHARING"; btn.classList.add('btn-stop');
+            document.getElementById('trackBtn').innerText = "STOP SHARING";
+            document.getElementById('trackBtn').classList.add('btn-stop');
             watchId = navigator.geolocation.watchPosition(async (pos) => {
                 const { latitude, longitude, speed } = pos.coords;
-                const batt = await (navigator.getBattery ? navigator.getBattery().then(b => Math.floor(b.level * 100)) : 0);
-                document.getElementById('speed').innerText = speed ? Math.round(speed * 3.6) : 0;
+                const kmh = speed ? Math.round(speed * 3.6) : 0;
+                document.getElementById('speed').innerText = kmh;
                 map.panTo([latitude, longitude]);
-                await supabaseClient.from('motor_location').update({ lat: latitude, lng: longitude, speed: speed ? Math.round(speed * 3.6) : 0, battery: batt, updated_at: new Date().toISOString() }).eq('role', userRole);
+                const batt = await (navigator.getBattery ? navigator.getBattery().then(b => Math.floor(b.level * 100)) : 0);
+                await supabaseClient.from('motor_location').update({ lat: latitude, lng: longitude, speed: kmh, battery: batt }).eq('role', userRole);
             }, null, { enableHighAccuracy: true });
         } else {
-            isTracking = false; btn.innerText = "START TRACKING"; btn.classList.remove('btn-stop');
+            isTracking = false;
+            document.getElementById('trackBtn').innerText = "START TRACKING";
+            document.getElementById('trackBtn').classList.remove('btn-stop');
             navigator.geolocation.clearWatch(watchId);
         }
     }
