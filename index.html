@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-    <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-<link rel="apple-touch-icon" href="imong-icon.png">
-<link rel="icon" type="image/png" href="imong-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kim & Ian: Supreme Tracker</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -20,12 +18,15 @@
         :root { --neon-blue: #00d2ff; --neon-green: #39ff14; --neon-red: #ff3131; --dark: #0a0a0a; }
         body { margin: 0; padding: 0; background: var(--dark); font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; height: 100vh; }
         
+        /* LOGIN UI */
         #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .login-box { background: #1a1a1a; padding: 30px; border-radius: 20px; border: 1px solid #333; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 0 30px rgba(0,210,255,0.15); }
         input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 12px; border: 1px solid #444; background: #000; color: var(--neon-green); font-size: 16px; outline: none; box-sizing: border-box; }
 
+        /* MAP */
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; display: none; background: #111; }
         
+        /* THE "X" BUTTON */
         #unlock-btn { 
             position: absolute; bottom: 120px; right: 20px; z-index: 2000; 
             background: var(--neon-red); color: white; border: none; 
@@ -34,6 +35,7 @@
             box-shadow: 0 0 15px rgba(255, 49, 49, 0.6);
         }
 
+        /* DASHBOARD */
         #dashboard { 
             position: absolute; top: 15px; left: 10px; right: 10px; z-index: 1000; 
             background: rgba(15, 15, 15, 0.96); padding: 15px; border-radius: 18px; 
@@ -56,20 +58,19 @@
 
         .logout-btn { background: none; border: 1.5px solid var(--neon-red); color: var(--neon-red); padding: 5px 14px; border-radius: 10px; font-size: 11px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
 
+        /* CONTROLS */
         #controls { position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; width: 85%; }
         .btn { width: 100%; padding: 20px; border: none; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; background: var(--neon-green); color: black; box-shadow: 0 6px 20px rgba(57, 255, 20, 0.3); transition: 0.2s; }
         .btn-stop { background: var(--neon-red) !important; color: white; }
 
-        /* --- UPDATED ANIMATIONS --- */
-        .stationary-icon { animation: breathe 3s infinite ease-in-out; filter: grayscale(0.5); }
-        .moving-icon { animation: drive-pulse 0.6s infinite alternate; filter: drop-shadow(0 0 15px var(--neon-green)); }
-        .danger-icon { animation: red-flash 0.4s infinite alternate; filter: drop-shadow(0 0 20px var(--neon-red)) !important; }
-
+        /* ICON ANIMATIONS */
+        .stationary-icon { animation: breathe 3s infinite ease-in-out; filter: grayscale(0.4); }
         @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
-        @keyframes drive-pulse { from { transform: scale(1); } to { transform: scale(1.2); } }
+        .moving-icon { animation: drive-pulse 0.6s infinite alternate; filter: drop-shadow(0 0 15px var(--neon-green)); }
+        @keyframes drive-pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+        .danger-icon { animation: red-flash 0.4s infinite alternate; filter: drop-shadow(0 0 20px var(--neon-red)) !important; }
         @keyframes red-flash { from { filter: brightness(1); } to { filter: brightness(1.8); } }
 
-        .leaflet-popup-content-wrapper { background: #1a1a1a; color: white; border: 1px solid var(--neon-blue); border-radius: 12px; }
         .overspeed-alert { background: rgba(255, 49, 49, 0.92) !important; animation: bg-flash 0.4s infinite alternate; }
         @keyframes bg-flash { from { opacity: 1; } to { opacity: 0.7; } }
     </style>
@@ -114,13 +115,13 @@
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwcXZhanVkZHpseWdjaWFkcmRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTM2NDksImV4cCI6MjA4NjEyOTY0OX0.4tK1TmDQ9C0Abqood-IgFjrTCmBgVYsDAu-JPa3zYoQ';
     const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-    let isTracking = false, updateInterval = null, userRole = null;
+    let isTracking = false, updateInterval = null, userRole = null, wakeLock = null;
     let markers = {}, statusLabels = {}, connectLine = null, distLabel = null; 
     let coords = { driver: null, partner: null };
     let isMapLockedOnPartner = false;
 
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([7.0722, 125.601], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png').addTo(map);
 
     const iconMotor = 'https://cdn-icons-png.flaticon.com/512/171/171240.png';
@@ -134,16 +135,15 @@
     async function doLogin() {
         const email = document.getElementById('email').value.trim();
         const pass = document.getElementById('pass').value.trim();
-        const { data } = await supabaseClient.from('my_users').select('*').eq('email', email).eq('password', pass).single();
+        const { data, error } = await supabaseClient.from('my_users').select('*').eq('email', email).eq('password', pass).single();
         if (data) { 
             localStorage.setItem('kimian_login', JSON.stringify(data)); 
             userRole = data.role; 
             showApp(); 
-        } else { alert("Wrong credentials, bai!"); }
+        } else { alert("Mali imong login, bai!"); }
     }
 
     function doLogout() {
-        if(isTracking) toggleTracking();
         localStorage.removeItem('kimian_login');
         location.reload();
     }
@@ -168,37 +168,23 @@
         isMapLockedOnPartner = false;
         document.getElementById('unlock-btn').style.display = 'none';
         map.closePopup();
-        if (coords[userRole]) map.panTo([coords[userRole].lat, coords[userRole].lng]);
     }
 
     function updateUI(data) {
-        if (!data.lat || !data.lng) return;
-        
         const { role, lat, lng, speed, battery, updated_at } = data;
         const prevCoord = coords[role];
         coords[role] = { lat, lng };
         const timeStr = new Date(updated_at).toLocaleTimeString();
 
-        // Calculate Rotation
-        let rotation = 0;
-        if (prevCoord) {
-            const y = Math.sin((lng - prevCoord.lng) * Math.PI / 180) * Math.cos(lat * Math.PI / 180);
-            const x = Math.cos(prevCoord.lat * Math.PI / 180) * Math.sin(lat * Math.PI / 180) -
-                      Math.sin(prevCoord.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.cos((lng - prevCoord.lng) * Math.PI / 180);
-            rotation = Math.atan2(y, x) * 180 / Math.PI;
-        }
-
-        // Partner UI Updates
         if (role !== userRole) {
             document.getElementById('signal').classList.add('signal-online');
             document.getElementById('p-last-seen').innerText = "Last sync: " + timeStr;
             document.getElementById('p-speed').innerText = speed + " km/h";
-            document.getElementById('p-batt').innerText = (battery || 0) + "%";
+            document.getElementById('p-batt').innerText = (battery || "--") + "%";
             
             const moving = speed > 1;
-            const status = document.getElementById('move-status');
-            status.innerText = moving ? "MOVING" : "STAYING";
-            status.style.color = moving ? "var(--neon-green)" : "#555";
+            document.getElementById('move-status').innerText = moving ? "MOVING" : "STAYING";
+            document.getElementById('move-status').style.color = moving ? "var(--neon-green)" : "#555";
 
             if (isMapLockedOnPartner) map.panTo([lat, lng]);
 
@@ -210,25 +196,16 @@
             }
         }
 
-        // --- ICON LOGIC ---
-        let animClass = 'stationary-icon';
-        if (speed > 60) animClass = 'danger-icon';
-        else if (speed > 1) animClass = 'moving-icon';
-
+        let animClass = (speed > 60) ? 'danger-icon' : (speed > 1 ? 'moving-icon' : 'stationary-icon');
         const iconUrl = (role === 'driver') ? iconMotor : iconCar;
         const customIcon = L.divIcon({
-            className: 'custom-marker',
-            html: `<div class="${animClass}" style="width:45px; height:45px;">
-                     <img src="${iconUrl}" style="width:100%; height:100%; transform: rotate(${rotation}deg); transition: transform 0.5s linear;">
-                   </div>`,
-            iconSize: [45, 45],
-            iconAnchor: [22, 22]
+            className: animClass,
+            html: `<img src="${iconUrl}" style="width:45px; height:45px;">`,
+            iconSize: [45, 45], iconAnchor: [22, 22]
         });
 
-        const popupHtml = `<div style="text-align:center; color:white;"><b>${role.toUpperCase()}</b><br>⚡ ${speed} km/h | 🔋 ${battery}%</div>`;
-
         if (!markers[role]) {
-            markers[role] = L.marker([lat, lng], { icon: customIcon, zIndexOffset: 1000 }).addTo(map).bindPopup(popupHtml);
+            markers[role] = L.marker([lat, lng], { icon: customIcon }).addTo(map);
             if (role !== userRole) {
                 markers[role].on('click', () => {
                     isMapLockedOnPartner = true;
@@ -238,28 +215,16 @@
         } else {
             markers[role].setLatLng([lat, lng]);
             markers[role].setIcon(customIcon);
-            if (markers[role].getPopup()) markers[role].setPopupContent(popupHtml);
         }
 
-        // Status Label Update
-        const labelTxt = speed > 1 ? `${speed} km/h` : "STAYING";
-        const statusIcon = L.divIcon({
-            className: 'status-tag',
-            html: `<div style="color:${speed > 1 ? 'var(--neon-green)' : '#888'};">${labelTxt}</div>`,
-            iconAnchor: [35, -10]
-        });
-
-        if (!statusLabels[role]) statusLabels[role] = L.marker([lat, lng], { icon: statusIcon }).addTo(map);
-        else { statusLabels[role].setLatLng([lat, lng]); statusLabels[role].setIcon(statusIcon); }
-
-        // Distance Line Update
+        // Distance & Line
         if (coords.driver && coords.partner) {
             const p1 = [coords.driver.lat, coords.driver.lng], p2 = [coords.partner.lat, coords.partner.lng];
-            if (!connectLine) connectLine = L.polyline([p1, p2], { color: 'var(--neon-blue)', weight: 3, dashArray: '10, 15' }).addTo(map);
+            if (!connectLine) connectLine = L.polyline([p1, p2], { color: 'var(--neon-blue)', weight: 2, dashArray: '5, 10' }).addTo(map);
             else connectLine.setLatLngs([p1, p2]);
 
-            const dist = (map.distance(p1, p2) / 1000).toFixed(2);
-            const distTxt = dist < 1 ? (dist * 1000).toFixed(0) + " m" : dist + " km";
+            const d = (map.distance(p1, p2) / 1000).toFixed(2);
+            const distTxt = d < 1 ? (d * 1000).toFixed(0) + " m" : d + " km";
             document.getElementById('dist-val').innerText = distTxt;
 
             const mid = [(p1[0]+p2[0])/2, (p1[1]+p2[1])/2];
@@ -269,31 +234,40 @@
     }
 
     function listenUpdates() {
-        supabaseClient.channel('realtime_tracking').on('postgres_changes', { 
-            event: 'UPDATE', schema: 'public', table: 'motor_location' 
-        }, payload => { updateUI(payload.new); }).subscribe();
+        supabaseClient.channel('any').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'motor_location' }, 
+        payload => { updateUI(payload.new); }).subscribe();
     }
 
     async function toggleTracking() {
         if (!isTracking) {
+            // Request Wake Lock (Keep screen on)
+            if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+            
             isTracking = true;
             document.getElementById('trackBtn').innerText = "STOP SHARING";
             document.getElementById('trackBtn').classList.add('btn-stop');
+            
             updateInterval = setInterval(() => {
                 navigator.geolocation.getCurrentPosition(async (pos) => {
                     const { latitude, longitude, speed } = pos.coords;
                     const kmh = speed ? Math.round(speed * 3.6) : 0;
                     document.getElementById('speed-val').innerText = kmh + " km/h";
-                    if (!isMapLockedOnPartner) map.panTo([latitude, longitude]);
-                    const battery = await (navigator.getBattery ? navigator.getBattery().then(b => Math.floor(b.level * 100)) : 0);
+                    
+                    let battLevel = 0;
+                    try { const b = await navigator.getBattery(); battLevel = Math.floor(b.level * 100); } catch(e){}
+
                     await supabaseClient.from('motor_location').update({ 
-                        lat: latitude, lng: longitude, speed: kmh, battery: battery, updated_at: new Date().toISOString() 
+                        lat: latitude, lng: longitude, speed: kmh, battery: battLevel, updated_at: new Date().toISOString() 
                     }).eq('role', userRole);
+                    
+                    if (!isMapLockedOnPartner) map.panTo([latitude, longitude]);
                 }, null, { enableHighAccuracy: true });
-            }, 2500); 
-        } else { isTracking = false; location.reload(); }
+            }, 3000); 
+        } else {
+            if (wakeLock) wakeLock.release();
+            location.reload();
+        }
     }
 </script>
 </body>
 </html>
-
