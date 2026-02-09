@@ -3,35 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kim & Ian: Supreme Tracker V16 Adaptive</title>
+    <title>Kim & Ian: Mega Nexus V17 Ultimate</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        :root { --neon-blue: #00d2ff; --neon-green: #39ff14; --neon-red: #ff3131; --dark: #0a0a0a; }
+
+        /* Red Dot Notification */
+.notification-dot {
+    position: absolute; top: 0; right: 0;
+    width: 10px; height: 10px;
+    background: var(--neon-red);
+    border-radius: 50%; border: 2px solid var(--dark);
+    display: none; /* Hide by default */
+}
+
+/* Seen Status */
+.seen-status {
+    font-size: 8px; color: #666; text-align: right; margin-top: 2px;
+}
+
+/* Last Seen sa Dashboard */
+#last-seen-val { font-size: 8px; color: var(--gold); display: block; }
+        /* COMPACT CHAT HUB */
+#chat-hub { 
+    position: absolute; 
+    bottom: 160px; 
+    left: 10px; 
+    z-index: 1000; 
+    width: 220px; /* Gamay ra siya */
+    display: none; 
+    flex-direction: column; 
+    gap: 5px; 
+}
+#chat-messages { 
+    max-height: 80px; 
+    overflow-y: auto; 
+    background: rgba(10,10,10,0.85); 
+    border-radius: 8px; 
+    padding: 6px; 
+    border: 1px solid #333; 
+    font-size: 10px;
+    backdrop-filter: blur(5px);
+}
+.chat-input-row { display: flex; gap: 4px; }
+#chat-input { 
+    background: rgba(0,0,0,0.9); border: 1px solid var(--neon-blue); 
+    padding: 8px; border-radius: 8px; color: white; flex-grow: 1; font-size: 11px; outline: none;
+}
+.chat-send-btn { background: var(--neon-blue); border: none; border-radius: 8px; padding: 0 10px; color: black; font-weight: bold; font-size: 10px; }
+
+/* TOGGLE BUTTON PARA SA CHAT */
+#chat-toggle {
+    position: absolute; bottom: 160px; left: 10px; z-index: 1001;
+    background: rgba(0,0,0,0.8); border: 1px solid #444; color: white;
+    width: 35px; height: 35px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 16px;
+}
+        :root { --neon-blue: #00d2ff; --neon-green: #39ff14; --neon-red: #ff3131; --dark: #0a0a0a; --gold: #ffcf33; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         body { margin: 0; padding: 0; background: var(--dark); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: white; overflow: hidden; height: 100vh; width: 100vw; }
         
         #login-screen { position: fixed; inset: 0; background: var(--dark); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .login-box { background: #1a1a1a; padding: 30px; border-radius: 20px; border: 1px solid #333; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 0 30px rgba(0,210,255,0.15); }
         input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 12px; border: 1px solid #444; background: #000; color: var(--neon-green); font-size: 16px; outline: none; }
-
         #map { position: absolute; inset: 0; z-index: 1; display: none; background: #111; }
         
         #dashboard { 
             position: absolute; top: env(safe-area-inset-top, 10px); left: 8px; right: 8px; z-index: 1000; 
             background: rgba(10, 10, 10, 0.85); padding: 8px 12px; border-radius: 15px; 
             border: 1px solid #333; display: none; backdrop-filter: blur(10px);
+            transition: box-shadow 0.5s ease;
         }
-
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 5px; }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
         .stat-card { background: rgba(255,255,255,0.03); padding: 5px 2px; border-radius: 8px; text-align: center; border: 1px solid #222; }
         .stat-label { font-size: 7px; color: #888; text-transform: uppercase; margin-bottom: 1px; }
         .stat-val { font-size: 11px; font-weight: bold; color: var(--neon-blue); }
         .eta-badge { grid-column: span 4; background: rgba(0, 210, 255, 0.1); color: var(--neon-blue); font-size: 10px; padding: 3px; border-radius: 5px; border: 1px solid rgba(0, 210, 255, 0.2); margin-bottom: 5px; text-align: center; font-weight: bold; }
+
+        /* PART 6 ADDITIONS */
+        #weather-hub { 
+            position: absolute; top: 125px; right: 8px; z-index: 1000; 
+            background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 10px; 
+            border: 1px solid #333; font-size: 10px; display: none; align-items: center; gap: 6px; 
+            backdrop-filter: blur(5px);
+        }
+        .proximity-glow { animation: proximity-pulse 1.5s infinite; }
+        @keyframes proximity-pulse { 
+            0% { box-shadow: 0 0 5px var(--neon-green); } 
+            50% { box-shadow: 0 0 20px var(--neon-green); } 
+            100% { box-shadow: 0 0 5px var(--neon-green); } 
+        }
+
+        #quick-pings { position: absolute; top: 180px; left: 8px; z-index: 1000; display: none; flex-direction: column; gap: 8px; }
+        .ping-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #444; background: rgba(0,0,0,0.8); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .sos-btn { background: var(--neon-red) !important; border-color: white !important; animation: blink 0.8s infinite; }
 
         #settings-panel { 
             position: fixed; bottom: 0; left: 0; right: 0; background: #111; z-index: 5000; 
@@ -40,45 +108,47 @@
         }
         .set-btn-small { background: #222; color: white; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 10px; font-weight: bold; width: 100%; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
-        #lock-indicator { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 2000; background: var(--neon-blue); color: black; padding: 4px 12px; border-radius: 15px; font-size: 10px; font-weight: bold; display: none; }
-        #unlock-btn { position: absolute; bottom: 120px; right: 15px; z-index: 2000; background: var(--neon-red); color: white; border: 1px solid white; width: 70px; height: 30px; border-radius: 5px; font-size: 10px; font-weight: bold; display: none; align-items: center; justify-content: center; }
-
-        #map-type { position: absolute; top: 180px; right: 8px; z-index: 1000; background: rgba(0,0,0,0.8); border-radius: 8px; border: 1px solid #444; overflow: hidden; display: flex; flex-direction: column; }
-        .type-btn { background: none; border: none; color: #666; font-size: 9px; font-weight: bold; cursor: pointer; padding: 8px; border-bottom: 1px solid #222; }
+        #map-type, .traffic-control { position: absolute; right: 8px; z-index: 1000; background: rgba(0,0,0,0.8); border-radius: 8px; border: 1px solid #444; overflow: hidden; }
+        #map-type { top: 180px; display: flex; flex-direction: column; }
+        .traffic-control { top: 265px; }
+        .type-btn { background: none; border: none; color: #666; font-size: 9px; font-weight: bold; padding: 8px; border-bottom: 1px solid #222; }
         .type-active { color: var(--neon-blue); background: rgba(255,255,255,0.05); }
 
-        .traffic-control { position: absolute; top: 260px; right: 8px; z-index: 1000; background: rgba(0,0,0,0.8); border-radius: 8px; border: 1px solid #444; overflow: hidden; }
-        .traffic-on { color: var(--neon-green) !important; }
-
+        #lock-indicator { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 2000; background: var(--neon-blue); color: black; padding: 4px 12px; border-radius: 15px; font-size: 10px; font-weight: bold; display: none; }
+        #unlock-btn { position: absolute; bottom: 120px; right: 15px; z-index: 2000; background: var(--neon-red); color: white; border: 1px solid white; width: 70px; height: 30px; border-radius: 5px; font-size: 10px; font-weight: bold; display: none; align-items: center; justify-content: center; }
         #controls { position: absolute; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 1000; display: none; width: 92%; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 30px; font-size: 14px; font-weight: bold; cursor: pointer; background: var(--neon-green); color: black; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 30px; font-size: 14px; font-weight: bold; background: var(--neon-green); color: black; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .btn-stop { background: var(--neon-red) !important; color: white; }
 
-        .icon-container { position: relative; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
-        .halo { position: absolute; width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--neon-green); opacity: 0.8; animation: breathe 2s infinite; pointer-events: none; }
-        .halo-low-batt { border-color: var(--neon-red); animation: blink 1s infinite; }
-        .halo-weak { border-style: dashed; border-color: #ffaa00; }
-        .marker-img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; z-index: 2; border: 2px solid white; background: #222; }
-        
-        .icon-details { position: absolute; bottom: -12px; display: flex; flex-direction: column; align-items: center; width: 100%; z-index: 10; pointer-events: none; }
-        .marker-speed { background: black; color: var(--neon-green); font-size: 9px; font-weight: bold; padding: 1px 4px; border-radius: 4px; border: 1px solid #333; }
-        .marker-batt { background: #222; color: white; font-size: 7px; padding: 1px 3px; border-radius: 3px; margin-top: 1px; }
-        .place-tag { position: absolute; top: -14px; background: var(--neon-blue); color: black; font-size: 8px; font-weight: bold; padding: 1px 5px; border-radius: 4px; border: 1px solid white; z-index: 10; white-space: nowrap; }
+        .icon-container { position: relative; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; }
+        .halo { position: absolute; width: 48px; height: 48px; border-radius: 50%; border: 4px solid var(--neon-green); opacity: 0.8; animation: breathe 2s infinite; pointer-events: none; }
+        .halo-low-batt { border-color: var(--neon-red); animation: blink 0.5s infinite; }
+        .halo-gold { border-color: var(--gold); border-width: 5px; box-shadow: 0 0 15px var(--gold); }
+        .marker-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; z-index: 2; border: 2px solid white; background: #222; }
+        .distance-label { background: rgba(0, 0, 0, 0.85); color: var(--neon-green); font-weight: bold; padding: 4px 10px; border-radius: 20px; font-size: 11px; border: 1px solid var(--neon-green); white-space: nowrap; box-shadow: 0 0 15px rgba(57, 255, 20, 0.4); }
 
-        @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
+        @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } }
         @keyframes blink { 50% { opacity: 0.1; } }
-        .distance-label { background: var(--neon-blue); color: #000; font-weight: bold; padding: 2px 8px; border-radius: 10px; font-size: 9px; border: 1px solid #fff; white-space: nowrap; }
     </style>
 </head>
 <body>
 
+<div id="notify-toast" style="position: fixed; top: 110px; left: 50%; transform: translateX(-50%); background: var(--neon-green); color: black; padding: 10px 20px; border-radius: 50px; font-weight: bold; z-index: 9000; display: none; box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); border: 2px solid white; font-size: 12px; text-align: center;">Partner Alert!</div>
+
+<div id="weather-hub">
+    <span id="wx-icon">☀️</span>
+    <span id="wx-temp">--°C</span>
+    <span style="color:#444;">|</span>
+    <span id="wx-desc" style="font-weight:bold; letter-spacing: 1px;">SYNCING...</span>
+</div>
+
 <div id="login-screen">
     <div class="login-box">
         <h1 style="color: var(--neon-blue); font-size: 24px; margin-bottom: 5px;">KIM & IAN</h1>
-        <p style="color: #666; font-size: 10px; margin-bottom: 20px;">V16 ADAPTIVE EDITION</p>
+        <p style="color: #666; font-size: 10px; margin-bottom: 20px;">V17.0 ULTIMATE NEXUS</p>
         <input type="email" id="email" placeholder="Email Address">
         <input type="password" id="pass" placeholder="Password">
-        <button class="btn" style="margin-top: 10px;" onclick="doLogin()">SIGN IN</button>
+        <button class="btn" onclick="doLogin()">SIGN IN</button>
     </div>
 </div>
 
@@ -90,110 +160,192 @@
         </div>
         <div style="display:flex; gap:10px; align-items: center;">
             <span id="move-status" style="font-weight: bold; color: #555; font-size: 9px;">STAYING</span>
-            <button onclick="toggleSettings()" style="background:none; border:none; color:white; font-size:16px; padding:0;">⚙️</button>
+            <button onclick="toggleSettings()" style="background:none; border:none; color:white; font-size:16px;">⚙️</button>
             <button onclick="doLogout()" style="background:none; border:1px solid var(--neon-red); color:var(--neon-red); font-size:9px; border-radius:4px; padding:2px 5px;">LOGOUT</button>
         </div>
     </div>
     <div class="stats-grid">
-        <div class="eta-badge" id="eta-display">ETA: Calculating...</div>
+        <div class="eta-badge" id="eta-display">NEXUS LINK: ESTABLISHED</div>
         <div class="stat-card"><div class="stat-label">Dist</div><div id="dist-val" class="stat-val">0.0 km</div></div>
-        <div class="stat-card"><div class="stat-label">Home</div><div id="home-val" class="stat-val">-- km</div></div>
+        <div class="stat-card"><div class="stat-label">ETA Home</div><div id="eta-val" class="stat-val">-- min</div></div>
         <div class="stat-card"><div class="stat-label">Me</div><div id="speed-val" class="stat-val">0 km/h</div></div>
         <div class="stat-card"><div class="stat-label">Partner</div><div id="p-speed" class="stat-val">0 km/h</div><div id="p-batt" style="font-size:7px; color:#39ff14;">--%</div></div>
     </div>
 </div>
 
+<div id="quick-pings">
+    <button class="ping-btn sos-btn" onclick="sendPing('🆘 SOS! NEED HELP!')">🆘</button>
+    <button class="ping-btn" onclick="sendPing('📍 Asa naka?')">📍</button>
+    <button class="ping-btn" onclick="sendPing('🏠 Pauli na!')">🏠</button>
+    <button class="ping-btn" onclick="sendPing('❤️ Pag-amping!')">❤️</button>
+</div>
+
 <div id="settings-panel">
-    <h4 style="margin:0 0 15px 0; color:var(--neon-blue);">Profile & Status Icons</h4>
-    
+    <h4 style="margin:0 0 15px 0; color:var(--neon-blue);">Profile & Locations</h4>
     <button class="set-btn-small" onclick="triggerUpload('main')">🖼️ CHANGE MAIN PHOTO</button>
-    
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom: 15px;">
         <button class="set-btn-small" onclick="triggerUpload('idle')">🧘 TAMBAY ICON</button>
         <button class="set-btn-small" onclick="triggerUpload('walk')">🚶 WALKING ICON</button>
         <button class="set-btn-small" onclick="triggerUpload('motor')">🏍️ MOTOR ICON</button>
-        <button class="set-btn-small" style="background:#442222" onclick="savePlace('HOME')">🏠 SAVE HOME</button>
+        <button class="set-btn-small" style="background:#114411" onclick="savePlace('HOME')">🏠 SAVE HOME</button>
+        <button class="set-btn-small" style="background:#111144" onclick="savePlace('WORK')">💼 SAVE WORK</button>
     </div>
-
     <input type="file" id="adaptive-file-input" accept="image/*" style="display:none;" onchange="handleUpload(this)">
     <button class="btn" style="padding:10px; font-size:12px; background:#333; color:white;" onclick="toggleSettings()">CLOSE</button>
 </div>
+<button id="chat-toggle" onclick="toggleChat()">💬</button>
 
+<div id="chat-hub">
+    <div id="chat-messages"></div>
+    <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Chat...">
+        <button class="chat-send-btn" onclick="sendLiveChat()">OK</button>
+    </div>
+</div>
 <div id="map-type">
     <button class="type-btn type-active" id="btn-street" onclick="setMapType('street')">STR</button>
     <button class="type-btn" id="btn-sat" onclick="setMapType('sat')">SAT</button>
 </div>
-<div class="traffic-control"><button class="type-btn" id="btn-traffic" onclick="toggleTraffic()">TRAF</button></div>
+<div class="traffic-control">
+    <button class="type-btn" id="btn-traffic" onclick="toggleTraffic()">TRAF</button>
+</div>
+
 <div id="lock-indicator">FOLLOWING: <span id="lock-name">...</span></div>
 <button id="unlock-btn" onclick="unlockMap()">FREE</button>
 <div id="controls"><button id="trackBtn" class="btn" onclick="toggleTracking()">START LIVE SHARING</button></div>
 <div id="map"></div>
-
 <script>
     const SB_URL = 'https://epqvajuddzlygciadrdh.supabase.co';
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwcXZhanVkZHpseWdjaWFkcmRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTM2NDksImV4cCI6MjA4NjEyOTY0OX0.4tK1TmDQ9C0Abqood-IgFjrTCmBgVYsDAu-JPa3zYoQ';
     const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-    let isTracking = false, userRole = null, uploadTarget = 'main';
-    let markers = {}, connectLine = null, distLabel = null; 
+    let isTracking = false, userRole = null, uploadTarget = 'main', trafficOn = false;
+    let markers = {}, distLabel = null, nexusLine = null; 
     let roadTrails = { driver: L.featureGroup(), partner: L.featureGroup() };
     let coords = { driver: null, partner: null };
-    let userMetadata = { HOME: null, WORK: null, icons: {} };
-    let lockedRole = null, watchID = null;
+    let liveStats = { driver: {speed:0, batt:0}, partner: {speed:0, batt:0} };
+    let lastGeofenceState = { driver: "ROAD", partner: "ROAD" };
+    let lockedRole = null, watchID = null, lastWeatherTime = 0;
 
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([7.0722, 125.601], 15);
     const streetTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     const satTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-    const trafficLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], opacity: 0.6 });
+    const googleTraffic = L.tileLayer('https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+    
+    const notifySound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+    const chatPop = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
 
-    function toggleSettings() { const p = document.getElementById('settings-panel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
-    function setMapType(type) {
-        if (type === 'sat') { map.removeLayer(streetTiles); satTiles.addTo(map); document.getElementById('btn-sat').classList.add('type-active'); document.getElementById('btn-street').classList.remove('type-active'); }
-        else { map.removeLayer(satTiles); streetTiles.addTo(map); document.getElementById('btn-street').classList.add('type-active'); document.getElementById('btn-sat').classList.remove('type-active'); }
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 1; msg.pitch = 1;
+            window.speechSynthesis.speak(msg);
+        }
     }
 
-    function triggerUpload(type) { uploadTarget = type; document.getElementById('adaptive-file-input').click(); }
+    function getIntelHTML(role, speed, battery, timeDiff, currentPlace) {
+        const color = (role === 'driver') ? '#ff69b4' : 'var(--neon-blue)';
+        const statusColor = (timeDiff < 60) ? 'var(--neon-green)' : 'var(--neon-red)';
+        return `<div id="pop-container-${role}" style="padding:10px; min-width:150px; text-align:center; background:rgba(10,10,10,0.95); border-radius:12px; border:1px solid ${color};">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <b style="color:${color}; font-size:12px; text-transform:uppercase;">${role}</b>
+                <span style="color:${statusColor}; font-size:16px;">●</span>
+            </div>
+            <div style="margin: 8px 0;">
+                <div style="font-size:28px; font-weight:bold; color:var(--neon-green); line-height:1;"><span id="p-speed-pop-${role}">${Math.round(speed)}</span><small style="font-size:10px; color:#aaa;">km/h</small></div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; border-top:1px solid #333; padding-top:8px;">
+                <div><div style="font-size:11px; color:white;">🔋 <span id="p-batt-pop-${role}">${battery}</span>%</div></div>
+                <div><div style="font-size:11px; color:var(--gold); font-weight:bold;">${currentPlace}</div></div>
+            </div>
+        </div>`;
+    }
+
+    async function fetchWeather(lat, lng) {
+        if (Date.now() - lastWeatherTime < 900000) return; 
+        try {
+            const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+            const d = await r.json();
+            const wx = d.current_weather;
+            document.getElementById('weather-hub').style.display = 'flex';
+            document.getElementById('wx-temp').innerText = Math.round(wx.temperature) + "°C";
+            document.getElementById('wx-icon').innerText = wx.weathercode > 50 ? "🌧️" : "☀️";
+            document.getElementById('wx-desc').innerText = wx.weathercode > 50 ? "MAULAN" : "MAAYO";
+            lastWeatherTime = Date.now();
+        } catch(e) {}
+    }
+
+    function checkProximity(d) {
+        const dash = document.getElementById('dashboard');
+        if (d < 300 && d > 10) { dash.classList.add('proximity-glow'); } 
+        else { dash.classList.remove('proximity-glow'); }
+    }
+
+    async function sendPing(msg) {
+        await supabaseClient.from('motor_location').update({ last_ping: msg, updated_at: new Date().toISOString() }).eq('role', userRole);
+        appendMsg('Me', msg, 'var(--neon-green)');
+        showToast("Sent: " + msg);
+    }
+
+    function showToast(msg, isUrgent = false) {
+        const toast = document.getElementById('notify-toast');
+        toast.innerText = msg;
+        toast.style.background = isUrgent ? 'var(--neon-red)' : 'var(--neon-green)';
+        toast.style.display = 'block';
+        if(isUrgent) notifySound.play().catch(e => {});
+        setTimeout(() => toast.style.display = 'none', 5000);
+    }
+
+    function toggleTraffic() {
+        trafficOn = !trafficOn;
+        document.getElementById('btn-traffic').style.color = trafficOn ? 'var(--neon-green)' : '#666';
+        if (trafficOn) googleTraffic.addTo(map); else map.removeLayer(googleTraffic);
+    }
+
+    function toggleSettings() { const p = document.getElementById('settings-panel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+    
+    function setMapType(type) {
+        if (type === 'sat') { map.removeLayer(streetTiles); satTiles.addTo(map); }
+        else { map.removeLayer(satTiles); streetTiles.addTo(map); }
+        document.getElementById('btn-sat').classList.toggle('type-active', type==='sat');
+        document.getElementById('btn-street').classList.toggle('type-active', type==='street');
+    }
 
     async function handleUpload(input) {
         if (!input.files[0]) return;
         const file = input.files[0];
         const fileName = `${uploadTarget}-${userRole}-${Date.now()}.jpg`;
-        const { data, error } = await supabaseClient.storage.from('avatars').upload(fileName, file, { upsert: true });
-        if (error) return alert("Upload failed: " + error.message);
-        
+        await supabaseClient.storage.from('avatars').upload(fileName, file);
         const { data: { publicUrl } } = supabaseClient.storage.from('avatars').getPublicUrl(fileName);
-        
-        if (uploadTarget === 'main') {
-            await supabaseClient.from('my_users').update({ photo_url: publicUrl }).eq('role', userRole);
-        } else {
-            if(!userMetadata.icons) userMetadata.icons = {};
-            userMetadata.icons[uploadTarget] = publicUrl;
-            await supabaseClient.from('my_users').update({ metadata: userMetadata }).eq('role', userRole);
-        }
-        alert("Icon Updated!");
+        const { data: current } = await supabaseClient.from('my_users').select('metadata').eq('role', userRole).single();
+        let meta = current?.metadata || { icons: {} };
+        if (uploadTarget === 'main') await supabaseClient.from('my_users').update({ photo_url: publicUrl }).eq('role', userRole);
+        else { meta.icons[uploadTarget] = publicUrl; await supabaseClient.from('my_users').update({ metadata: meta }).eq('role', userRole); }
         location.reload();
     }
 
+    function triggerUpload(type) { uploadTarget = type; document.getElementById('adaptive-file-input').click(); }
+    
     async function savePlace(type) {
         if (!coords[userRole]) return alert("GPS not ready.");
-        userMetadata[type] = coords[userRole];
-        await supabaseClient.from('my_users').update({ metadata: userMetadata }).eq('role', userRole);
+        const { data: current } = await supabaseClient.from('my_users').select('metadata').eq('role', userRole).single();
+        let meta = current?.metadata || { icons: {} };
+        meta[type] = coords[userRole]; 
+        await supabaseClient.from('my_users').update({ metadata: meta }).eq('role', userRole);
+        alert(type + " Saved!");
     }
 
     async function doLogin() {
         const email = document.getElementById('email').value.trim();
         const pass = document.getElementById('pass').value.trim();
         const { data } = await supabaseClient.from('my_users').select('*').eq('email', email).eq('password', pass).single();
-        if (data) { 
-            localStorage.setItem('kimian_login', JSON.stringify(data)); 
-            userRole = data.role; userMetadata = data.metadata || { icons: {} };
-            showApp(); 
-        } else { alert("Wrong Login!"); }
+        if (data) { localStorage.setItem('kimian_login', JSON.stringify(data)); userRole = data.role; showApp(); } 
+        else { alert("Wrong Login!"); }
     }
 
     window.onload = () => { 
         const saved = localStorage.getItem('kimian_login'); 
-        if (saved) { const d = JSON.parse(saved); userRole = d.role; userMetadata = d.metadata || { icons: {} }; showApp(); } 
+        if (saved) { const d = JSON.parse(saved); userRole = d.role; showApp(); } 
     };
 
     function showApp() {
@@ -201,94 +353,175 @@
         document.getElementById('map').style.display = 'block';
         document.getElementById('dashboard').style.display = 'block';
         document.getElementById('controls').style.display = 'block';
+        document.getElementById('quick-pings').style.display = 'flex';
+        document.getElementById('chat-toggle').style.display = 'flex';
         document.getElementById('role-text').innerText = userRole.toUpperCase();
         roadTrails.driver.addTo(map); roadTrails.partner.addTo(map);
         setTimeout(() => { map.invalidateSize(); fetchInitial(); listenUpdates(); }, 500);
     }
 
-    async function fetchInitial() {
-        const { data } = await supabaseClient.from('motor_location').select('*');
-        data?.forEach(loc => updateUI(loc));
+    async function fetchInitial() { 
+        const { data } = await supabaseClient.from('motor_location').select('*'); 
+        data?.forEach(loc => updateUI(loc)); 
     }
 
     async function updateUI(data) {
         if (!data.lat || !data.lng) return;
-        const { role, lat, lng, speed, battery, updated_at } = data;
+        const { role, lat, lng, speed, battery, updated_at, last_ping } = data;
         const { data: user } = await supabaseClient.from('my_users').select('photo_url, metadata').eq('role', role).single();
         
+        if (role === userRole) fetchWeather(lat, lng);
+        liveStats[role] = { speed, batt: battery };
         const prevCoord = coords[role];
         coords[role] = { lat, lng };
 
         if (prevCoord && (prevCoord.lat !== lat || prevCoord.lng !== lng)) {
-            let roadColor = (role === 'driver') ? '#ff69b4' : '#00d2ff';
-            L.polyline([[prevCoord.lat, prevCoord.lng], [lat, lng]], { color: roadColor, weight: 6, opacity: 0.8 }).addTo(roadTrails[role]);
+            L.polyline([[prevCoord.lat, prevCoord.lng], [lat, lng]], { color: role === 'driver' ? '#ff69b4' : '#00d2ff', weight: 4, opacity: 0.6 }).addTo(roadTrails[role]);
         }
 
-        // ADAPTIVE ICON LOGIC
         const uMeta = user?.metadata || { icons: {} };
-        const icons = uMeta.icons || {};
-        let activeIcon = user?.photo_url; // Default to main
+        let currentPlace = "ROAD";
+        if (uMeta.HOME && map.distance([lat, lng], [uMeta.HOME.lat, uMeta.HOME.lng]) < 70) currentPlace = "HOME";
+        else if (uMeta.WORK && map.distance([lat, lng], [uMeta.WORK.lat, uMeta.WORK.lng]) < 150) currentPlace = "WORK";
 
-        if (speed <= 3 && icons.idle) activeIcon = icons.idle;
-        else if (speed > 3 && speed <= 15 && icons.walk) activeIcon = icons.walk;
-        else if (speed > 15 && icons.motor) activeIcon = icons.motor;
+        if (role !== userRole && lastGeofenceState[role] !== currentPlace) {
+            speak(`${role} is now at ${currentPlace}`);
+            showToast(`${role.toUpperCase()} AT ${currentPlace}!`);
+            lastGeofenceState[role] = currentPlace;
+        }
 
         const timeDiff = Math.floor((new Date() - new Date(updated_at)) / 1000);
+        const popupContent = getIntelHTML(role, speed, battery, timeDiff, currentPlace);
 
         if (role !== userRole) {
+            if (last_ping && last_ping !== "") { 
+                chatPop.play().catch(e => {});
+                appendMsg(role.toUpperCase(), last_ping, 'var(--neon-blue)');
+                speak(`Message: ${last_ping}`);
+                
+                // Red Dot Notification Logic
+                const hub = document.getElementById('chat-hub');
+                if (hub.style.display === 'none' || hub.style.display === '') {
+                    const toggleBtn = document.getElementById('chat-toggle');
+                    toggleBtn.style.border = '2px solid var(--neon-red)';
+                    toggleBtn.innerHTML = '💬<div style="position:absolute; top:-2px; right:-2px; width:10px; height:10px; background:var(--neon-red); border-radius:50%; border:1px solid white;"></div>';
+                }
+                
+                await supabaseClient.from('motor_location').update({last_ping: ""}).eq('role', role);
+            }
+            if (battery < 15) { showToast("Partner Low Battery!", true); }
             document.getElementById('p-speed').innerText = Math.round(speed) + " km/h";
             document.getElementById('p-batt').innerText = (battery || 0) + "%";
-            if (speed > 1) { document.getElementById('move-status').innerText = "MOVING"; document.getElementById('move-status').style.color = "var(--neon-green)"; }
-            else { document.getElementById('move-status').innerText = "STAYING"; document.getElementById('move-status').style.color = "#555"; }
+            document.getElementById('eta-display').innerText = `PARTNER: ${currentPlace}`;
         } else {
             document.getElementById('speed-val').innerText = Math.round(speed) + " km/h";
+            document.getElementById('move-status').innerText = currentPlace;
         }
 
-        if (lockedRole === role) { map.panTo([lat, lng]); }
+        let activeIcon = user?.photo_url;
+        const icons = uMeta.icons || {};
+        if (speed <= 3 && icons.idle) activeIcon = icons.idle;
+        else if (speed > 15 && icons.motor) activeIcon = icons.motor;
 
         const customIcon = L.divIcon({
             className: 'custom-marker',
-            html: `<div class="icon-container">
-                    <div class="halo ${battery < 20 ? 'halo-low-batt' : ''} ${timeDiff > 40 ? 'halo-weak' : ''}"></div>
-                    <img src="${activeIcon}" class="marker-img">
-                    <div class="icon-details">
-                        <span class="marker-speed">${Math.round(speed)} km/h</span>
-                        <span class="marker-batt">🔋${battery}%</span>
-                    </div>
-                   </div>`,
-            iconSize: [50, 50], iconAnchor: [25, 25]
+            html: `<div class="icon-container"><div class="halo ${battery < 20 ? 'halo-low-batt' : ''} ${currentPlace !== 'ROAD' ? 'halo-gold' : ''}"></div><img src="${activeIcon}" class="marker-img"></div>`,
+            iconSize: [55, 55], iconAnchor: [27, 27]
         });
 
         if (!markers[role]) {
-            markers[role] = L.marker([lat, lng], { icon: customIcon }).addTo(map).on('click', () => { lockedRole = role; document.getElementById('unlock-btn').style.display='flex'; });
-        } else { markers[role].setLatLng([lat, lng]).setIcon(customIcon); }
+            markers[role] = L.marker([lat, lng], { icon: customIcon }).addTo(map).bindPopup(popupContent);
+            markers[role].on('click', () => { lockedRole = role; document.getElementById('unlock-btn').style.display='flex'; });
+        } else { 
+            markers[role].setLatLng([lat, lng]).setIcon(customIcon);
+            if (markers[role].getPopup()) markers[role].setPopupContent(popupContent);
+        }
 
-        // Distance & ETA logic
         if (coords.driver && coords.partner) {
             const d = map.distance([coords.driver.lat, coords.driver.lng], [coords.partner.lat, coords.partner.lng]);
+            checkProximity(d);
+            let lineCol = (d < 1000) ? 'var(--neon-green)' : 'var(--neon-red)';
+            if (!nexusLine) nexusLine = L.polyline([[coords.driver.lat, coords.driver.lng], [coords.partner.lat, coords.partner.lng]], { color: lineCol, weight: 8, opacity: 0.5 }).addTo(map);
+            else nexusLine.setLatLngs([[coords.driver.lat, coords.driver.lng], [coords.partner.lat, coords.partner.lng]]).setStyle({ color: lineCol });
             document.getElementById('dist-val').innerText = (d / 1000).toFixed(1) + "k";
-            const mid = [(coords.driver.lat+coords.partner.lat)/2, (coords.driver.lng+coords.partner.lng)/2];
-            if (!distLabel) distLabel = L.marker(mid, { icon: L.divIcon({ className: 'distance-label', html: (d/1000).toFixed(1) + " km" }) }).addTo(map);
-            else distLabel.setLatLng(mid).setIcon(L.divIcon({ className: 'distance-label', html: (d/1000).toFixed(1) + " km" }));
         }
+        if (lockedRole === role) map.panTo([lat, lng]);
     }
 
-    function unlockMap() { lockedRole = null; document.getElementById('unlock-btn').style.display = 'none'; }
-    function listenUpdates() { supabaseClient.channel('track').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'motor_location' }, p => updateUI(p.new)).subscribe(); }
+    function listenUpdates() { 
+        supabaseClient.channel('track').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'motor_location' }, p => updateUI(p.new)).subscribe(); 
+    }
 
     async function toggleTracking() {
         if (!isTracking) {
             isTracking = true;
             document.getElementById('trackBtn').innerText = "STOP SHARING";
             document.getElementById('trackBtn').classList.add('btn-stop');
+            speak("Live sharing activated");
             watchID = navigator.geolocation.watchPosition(async (pos) => {
                 const { latitude, longitude, speed } = pos.coords;
-                const kmh = speed ? Math.round(speed * 3.6) : 0;
                 let bLevel = 100; try { const bat = await navigator.getBattery(); bLevel = Math.floor(bat.level * 100); } catch(e) {}
-                await supabaseClient.from('motor_location').update({ lat: latitude, lng: longitude, speed: kmh, battery: bLevel, updated_at: new Date().toISOString() }).eq('role', userRole);
+                await supabaseClient.from('motor_location').update({ lat: latitude, lng: longitude, speed: Math.round((speed || 0) * 3.6), battery: bLevel, updated_at: new Date().toISOString() }).eq('role', userRole);
             }, null, { enableHighAccuracy: true });
         } else { location.reload(); }
     }
+
+    function toggleChat() {
+        const hub = document.getElementById('chat-hub');
+        const toggleBtn = document.getElementById('chat-toggle');
+        const isOpen = hub.style.display === 'flex';
+        
+        hub.style.display = isOpen ? 'none' : 'flex';
+        
+        // Clear Red Dot when opening
+        if (!isOpen) {
+            toggleBtn.style.border = '1px solid #444';
+            toggleBtn.innerHTML = '💬';
+        }
+    }
+
+    async function sendLiveChat() {
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if (!msg) return;
+        await supabaseClient.from('motor_location').update({ last_ping: msg, updated_at: new Date().toISOString() }).eq('role', userRole);
+        appendMsg('Me', msg, 'var(--neon-green)');
+        input.value = "";
+    }
+
+    function appendMsg(sender, msg, color) {
+        const container = document.getElementById('chat-messages');
+        const isMe = (sender === 'Me');
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const div = document.createElement('div');
+        // Kani nga style maoy mo-align sa messages (Left or Right)
+        div.style.cssText = `margin-bottom:10px; display:flex; flex-direction:column; align-items: ${isMe ? 'flex-end' : 'flex-start'};`;
+        
+        div.innerHTML = `
+            <div style="
+                background: ${isMe ? 'var(--neon-green)' : '#222'}; 
+                color: ${isMe ? 'black' : 'white'}; 
+                padding: 8px 12px; 
+                border-radius: 15px; 
+                border-bottom-${isMe ? 'right' : 'left'}-radius: 2px; 
+                font-size: 11px; 
+                max-width: 85%; 
+                word-wrap: break-word;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                border: 1px solid rgba(255,255,255,0.05);
+            ">
+                ${msg}
+            </div>
+            <span style="font-size:7px; color:#555; margin-top:2px; padding: 0 5px;">${timeStr}</span>
+        `;
+        
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function unlockMap() { lockedRole = null; document.getElementById('unlock-btn').style.display = 'none'; }
     function doLogout() { localStorage.removeItem('kimian_login'); location.reload(); }
 </script>
 </body>
